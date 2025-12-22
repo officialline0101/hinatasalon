@@ -1201,6 +1201,12 @@
         font-size: 14px;
     }
 }
+
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
     </style>
 </head>
 
@@ -1331,7 +1337,7 @@
         <div class="labeltyuuou">ご予約内容</div>
         <div id="displayInfo"></div> <!-- ここに選択された情報を表示します -->
 
-        <button class="submit-button" onclick="submitForm()" div id="section-message">予約を行う</button>
+        <button type="button" class="submit-button" id="section-message" onclick="submitForm(this)">予約を行う</button>
     </div>
 
     <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
@@ -1346,6 +1352,15 @@
         let totalAmount = 0; // 合計金額を格納する変数
         let menuPrice = 0; // メニューの価格
         let optionsPrice = 0; // オプションの合計価格
+let isSubmitting = false;
+
+function resetSubmitState(btn) {
+  isSubmitting = false;
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = btn.dataset.originalText || '予約を行う';
+  }
+}
 
         document.addEventListener('DOMContentLoaded', function () {
             liff.init({
@@ -1938,59 +1953,53 @@ function applyPreviousSelection() {
             updateDisplayInfo();
         }
 
-        function submitForm() {
-            const formData = {
-                name: document.getElementById('name').value.trim(),
-                namehurigana: document.getElementById('namehurigana').value.trim(),
-                phone: document.getElementById('phone').value.trim(),
-                visitCount: visitCount,
-                selectedMenu: selectedMenu,
-                selectedSymptom: selectedSymptom && selectedSymptom.length > 0 ? selectedSymptom : null, // 空の選択肢をチェック
-                irradiationsCount: irradiationsCount,
-                dates: selectedFullDate ? [selectedFullDate] : null, // 空チェック
-                message: document.getElementById('message').value.trim()
-            };
+function submitForm(btn) {
+  // ✅ 連打防止（2回目以降は無視）
+  if (isSubmitting) return;
 
-            // フォームデータのチェック
-            if (!formData.name) {
-                alert('氏名を入力してください。');
-                return;
-            }
+  isSubmitting = true;
 
-            if (!formData.namehurigana) {
-                alert('氏名（カナ）を入力してください。');
-                return;
-            }
+  // ボタンを無効化（表示も変更）
+  if (btn) {
+    btn.disabled = true;
+    btn.dataset.originalText = btn.textContent;
+    btn.textContent = '送信中...';
+  }
 
-            if (!formData.phone) {
-                alert('電話番号を入力してください。');
-                return;
-            }
+  const formData = {
+    name: document.getElementById('name').value.trim(),
+    namehurigana: document.getElementById('namehurigana').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    visitCount: visitCount,
+    selectedMenu: selectedMenu,
+    selectedSymptom: selectedSymptom && selectedSymptom.length > 0 ? selectedSymptom : null,
+    irradiationsCount: irradiationsCount,
+    dates: selectedFullDate ? [selectedFullDate] : null,
+    message: document.getElementById('message').value.trim()
+  };
 
-            if (!formData.selectedSymptom) {
-                alert('メニューを選択してください。');
-                return;
-            }
+  // ❗バリデーションで止まる場合は、必ず送信状態を戻す
+  if (!formData.name) { alert('氏名を入力してください。'); resetSubmitState(btn); return; }
+  if (!formData.namehurigana) { alert('氏名（カナ）を入力してください。'); resetSubmitState(btn); return; }
+  if (!formData.phone) { alert('電話番号を入力してください。'); resetSubmitState(btn); return; }
+  if (!formData.selectedSymptom) { alert('メニューを選択してください。'); resetSubmitState(btn); return; }
+  if (!formData.dates) { alert('希望日時を選択してください。'); resetSubmitState(btn); return; }
 
-            if (!formData.dates) {
-                alert('希望日時を選択してください。');
-                return;
-            }
+  // LINEトークにメッセージを送信
+  liff.sendMessages([{
+    type: 'text',
+    text: `【予約フォーム】\n氏名：${formData.name}\n氏名（カナ）：${formData.namehurigana}\n電話番号：${formData.phone}\nご来店回数：${formData.visitCount}\nメニュー：${formData.selectedSymptom}\n希望日時：\n ${formData.dates[0]}\n初診の方内容：${formData.message}`
+  }]).then(() => {
+    alert('キャンセルは無いようにお願いいたします。');
+    liff.closeWindow();
+  }).catch((err) => {
+    console.error('メッセージの送信に失敗しました', err);
+    alert('送信に失敗しました。通信状況をご確認の上、もう一度お試しください。');
 
-            // LINEトークにメッセージを送信
-            liff.sendMessages([{
-                type: 'text',
-                text: `【予約フォーム】\n氏名：${formData.name}\n氏名（カナ）：${formData.namehurigana}\n電話番号：${formData.phone}\nご来店回数：${formData.visitCount}\nメニュー：${formData.selectedSymptom}\n希望日時：\n ${formData.dates[0]}\n初診の方内容：${formData.message}`
-            }]).then(() => {
-                /* メッセージ送信成功時の処理 */
-                alert('キャンセルは無いようにお願いいたします。');
-                /* LIFFウィンドウを閉じる */
-                liff.closeWindow();
-            }).catch((err) => {
-                /* メッセージ送信失敗時の処理 */
-                console.error('メッセージの送信に失敗しました', err);
-            });
-        }
+    // ✅ 失敗したときだけ再送できるように戻す
+    resetSubmitState(btn);
+  });
+}
 
         function formatDate(dateStr) {
             if (!dateStr) return '';
