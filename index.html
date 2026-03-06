@@ -1207,6 +1207,102 @@
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* カスタムチェックボックス（同意） */
+.agree-wrapper {
+    margin: 16px 0;
+    display: flex;
+    justify-content: center;
+}
+
+.agree-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    border: 2px solid #ced4da;
+    border-radius: 50px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.agree-label:hover {
+    border-color: #45c4b7;
+    box-shadow: 0 4px 12px rgba(69,196,183,0.2);
+}
+
+/* チェックボックス本体は非表示 */
+.agree-label input[type="checkbox"] {
+    display: none;
+}
+
+/* カスタムチェックアイコン */
+.agree-check-icon {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #bbb;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.agree-check-icon::after {
+    content: '';
+    width: 7px;
+    height: 13px;
+    border: solid #fff;
+    border-width: 0 3px 3px 0;
+    transform: rotate(45deg) scale(0);
+    transition: transform 0.25s ease;
+    position: absolute;
+    top: 2px;
+    left: 6px;
+}
+
+/* チェック時のスタイル */
+.agree-label input[type="checkbox"]:checked ~ .agree-check-icon {
+    background: linear-gradient(135deg, #45c4b7, #38b2a5);
+    border-color: #45c4b7;
+    box-shadow: 0 2px 8px rgba(69,196,183,0.4);
+    animation: agree-pop 0.3s ease;
+}
+
+.agree-label input[type="checkbox"]:checked ~ .agree-check-icon::after {
+    transform: rotate(45deg) scale(1);
+}
+
+.agree-label input[type="checkbox"]:checked ~ .agree-text {
+    color: #45c4b7;
+}
+
+.agree-label:has(input:checked) {
+    border-color: #45c4b7;
+    background: #f0faf9;
+    box-shadow: 0 4px 14px rgba(69,196,183,0.18);
+}
+
+.agree-text {
+    transition: color 0.3s ease;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+}
+
+@keyframes agree-pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.25); }
+    100% { transform: scale(1); }
+}
     </style>
 </head>
 
@@ -1317,6 +1413,8 @@
             </div>
         </div>
 
+        <!-- 初診の方のみ表示されるエリア -->
+        <div id="shoshinArea" style="display: none;">
         <div class="labeltyuuou">
             <span style="color:red;">初診の方は以下の内容を<br>入力してください。</span>
         </div>
@@ -1333,10 +1431,18 @@
             ・赤ちゃんでのご予約は【生年月日】<br>
             それぞれ西暦からご記入ください。<br>
             簡単に【相談内容】と【第何子か】を教えてください。<br>
-            当日は、母子手帳と着替えをご持参ください。<br>
-            おっぱいマッサージでご予約の方はフェイスタオル3枚ご持参ください。
+            当日は、<span style="color:red;">母子手帳</span>と<span style="color:red;">着替え</span>をご持参ください。<br>
+            おっぱいマッサージでご予約の方は<span style="color:red;">フェイスタオル</span>3枚ご持参ください。
+        </div>
+        <div class="agree-wrapper">
+            <label class="agree-label">
+                <input type="checkbox" id="agreeCheck">
+                <span class="agree-check-icon"></span>
+                <span class="agree-text">利用規約に同意しました</span>
+            </label>
         </div>
         <textarea id="message" rows="4" placeholder="入力してください"></textarea>
+        </div>
 
         <div class="labeltyuuou">ご予約内容</div>
         <div id="displayInfo"></div> <!-- ここに選択された情報を表示します -->
@@ -1848,6 +1954,17 @@ function applyPreviousSelection() {
             element.classList.add('active');
             visitCount = element.innerText;
 
+            // 初診エリアの表示/非表示を切り替え
+            const shoshinArea = document.getElementById('shoshinArea');
+            if (element.id === 'firstVisit') {
+                // 初診の場合は表示
+                shoshinArea.style.display = 'block';
+            } else {
+                // 2回目以降の場合は非表示にし、入力内容をクリア
+                shoshinArea.style.display = 'none';
+                document.getElementById('message').value = '';
+            }
+
             // 選択された訪問回数に対応する時間を取得
             selectedVisitTime = visitTimes[visitCount];
 
@@ -1979,7 +2096,7 @@ function submitForm(btn) {
     selectedSymptom: selectedSymptom && selectedSymptom.length > 0 ? selectedSymptom : null,
     irradiationsCount: irradiationsCount,
     dates: selectedFullDate ? [selectedFullDate] : null,
-    message: document.getElementById('message').value.trim()
+    message: visitCount === '初診' ? document.getElementById('message').value.trim() : '【通知】2回目以降の方です。'
   };
 
   // ❗バリデーションで止まる場合は、必ず送信状態を戻す
@@ -1988,11 +2105,14 @@ function submitForm(btn) {
   if (!formData.phone) { alert('電話番号を入力してください。'); resetSubmitState(btn); return; }
   if (!formData.selectedSymptom) { alert('メニューを選択してください。'); resetSubmitState(btn); return; }
   if (!formData.dates) { alert('希望日時を選択してください。'); resetSubmitState(btn); return; }
+  // 初診の場合のみチェックボックスとメッセージ入力を必須にする
+  if (visitCount === '初診' && !document.getElementById('agreeCheck').checked) { alert('利用規約に同意してください。'); resetSubmitState(btn); return; }
+  if (visitCount === '初診' && !formData.message) { alert('初診の方は内容を入力してください。'); resetSubmitState(btn); return; }
 
   // LINEトークにメッセージを送信
   liff.sendMessages([{
     type: 'text',
-    text: `【予約フォーム】\n氏名：${formData.name}\n氏名（カナ）：${formData.namehurigana}\n電話番号：${formData.phone}\nご来店回数：${formData.visitCount}\nメニュー：${formData.selectedSymptom}\n希望日時：\n ${formData.dates[0]}\n初診の方内容：${formData.message}`
+    text: `【予約フォーム】\n氏名：${formData.name}\n氏名（カナ）：${formData.namehurigana}\n電話番号：${formData.phone}\nご来店回数：${formData.visitCount}\nメニュー：${formData.selectedSymptom}\n希望日時：\n ${formData.dates[0]}\n初診の方内容：${visitCount === '初診' ? formData.message : '【通知】2回目以降の方です。'}`
   }]).then(() => {
     alert('キャンセルは無いようにお願いいたします。');
     liff.closeWindow();
