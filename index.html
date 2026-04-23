@@ -1441,8 +1441,43 @@
                 <span class="agree-text">利用規約に同意しました</span>
             </label>
         </div>
-        <textarea id="message" rows="4" placeholder="入力してください"></textarea>
+        <!-- 生年月日・分娩予定日 -->
+        <div class="label">生年月日 / 分娩予定日</div>
+        <div class="info-text" style="font-size:13px; padding:10px 14px; margin-bottom:6px;">
+            ベビーケアの方は赤ちゃんの生年月日を、産後整体とおっぱいマッサージの方は分娩日を、マタニティ整体の方は分娩予定日をご記入ください
         </div>
+        <input type="text" id="msg_birthday" placeholder="例：2024年4月1日" oninput="updateMessage()">
+
+        <!-- 相談内容 -->
+        <div class="label">相談内容</div>
+        <div class="info-text" style="font-size:13px; padding:10px 14px; margin-bottom:6px;">
+            箇条書きで構いませんので、相談内容をご記入ください
+        </div>
+        <textarea id="msg_consul" rows="4" placeholder="例：・腰痛&#10;・授乳について" oninput="updateMessage()"></textarea>
+
+        <!-- 第何子ですか？ -->
+        <div class="label">第何子ですか？</div>
+        <input type="text" id="msg_child" placeholder="例：第1子" oninput="updateMessage()">
+
+        <!-- 送信用の非表示textarea（実際の送信データ） -->
+        <textarea id="message" rows="1" style="display:none;"></textarea>
+        </div>
+
+        <script>
+        /* 各フィールドの内容を結合して textarea#message に格納する */
+        function updateMessage() {
+            var birthday = document.getElementById('msg_birthday').value.trim();
+            var consul   = document.getElementById('msg_consul').value.trim();
+            var child    = document.getElementById('msg_child').value.trim();
+
+            var parts = [];
+            if (birthday) parts.push('【生年月日/分娩予定日】' + birthday);
+            if (consul)   parts.push('【相談内容】' + consul);
+            if (child)    parts.push('【第何子】' + child);
+
+            document.getElementById('message').value = parts.join('\n');
+        }
+        </script>
 
         <div class="labeltyuuou">ご予約内容</div>
         <div id="displayInfo"></div> <!-- ここに選択された情報を表示します -->
@@ -2112,7 +2147,7 @@ function submitForm(btn) {
   // LINEトークにメッセージを送信
   liff.sendMessages([{
     type: 'text',
-    text: `【予約フォーム】\n氏名：${formData.name}\n氏名（カナ）：${formData.namehurigana}\n電話番号：${formData.phone}\nご来店回数：${formData.visitCount}\nメニュー：${formData.selectedSymptom}\n希望日時：\n ${formData.dates[0]}\n初診の方内容：${visitCount === '初診' ? formData.message : '【通知】2回目以降の方です。'}`
+    text: `【予約フォーム】\n氏名：${formData.name}\n氏名（カナ）：${formData.namehurigana}\n電話番号：${formData.phone}\nご来店回数：${formData.visitCount}\nメニュー：${formData.selectedSymptom}\n希望日時：\n ${formData.dates[0]}\n初診の方内容：\n${visitCount === '初診' ? formData.message : '【通知】2回目以降の方です。'}`
   }]).then(() => {
     alert('キャンセルは無いようにお願いいたします。');
     liff.closeWindow();
